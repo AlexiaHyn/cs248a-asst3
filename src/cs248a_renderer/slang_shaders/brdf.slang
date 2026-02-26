@@ -10,7 +10,7 @@ __include "./brdf/retroreflective_lambertian.slang";
 public float3x3 getWorldToLocalMatrix(float3 normal, float3 rayOut)
 {
     float3x3 worldToLocalMatrix = float3x3(1.0);
-    float3 y = normal;
+    float3 y = normalize(normal);
     float3 z = normalize(cross(y, rayOut));
     float3 x = normalize(cross(y, z));
     worldToLocalMatrix[0][0] = x.x;
