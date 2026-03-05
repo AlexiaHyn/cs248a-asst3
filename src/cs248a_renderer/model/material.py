@@ -71,6 +71,16 @@ class MaterialField[T]:
         textures = [base_texture]
 
         # TODO: Student implementation starts here.
+        current_texture = base_texture
+        for level in range(1, self.MAX_MIP_LEVELS):
+            new_width = max(1, current_texture.shape[1] // 2)
+            new_height = max(1, current_texture.shape[0] // 2)
+            if new_width == current_texture.shape[1] and new_height == current_texture.shape[0]:
+                break  # cannot downsample further
+            pil_img = Image.fromarray((current_texture * 255).astype(np.uint8))
+            pil_img = pil_img.resize((new_width, new_height), Image.BILINEAR)
+            current_texture = np.array(pil_img).astype(np.float32) / 255.0
+            textures.append(current_texture)
 
         # TODO: Student implementation ends here.
 

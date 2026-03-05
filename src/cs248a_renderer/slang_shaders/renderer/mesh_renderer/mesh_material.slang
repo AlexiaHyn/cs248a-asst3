@@ -35,6 +35,41 @@ public float getLevel(float2 uv, RendererUniform uniforms, Triangle triangle, fl
     float level = 0.0;
 
     // TODO: Student implementation starts here.
+    float2 pixelOffset = 1.0 / float2(uniforms.camera.canvasSize);
+
+    Ray ray_dx = uniforms.camera.generateRay(uv + float2(pixelOffset.x, 0.0));
+    Ray ray_dy = uniforms.camera.generateRay(uv + float2(0.0, pixelOffset.y));
+    Optional<RayMeshIntersectionResult> hit_dx = rayMeshIntersection(ray_dx, uniforms);
+    Optional<RayMeshIntersectionResult> hit_dy = rayMeshIntersection(ray_dy, uniforms);
+    float2 tex_uv_dx = tex_uv;
+    float2 tex_uv_dy = tex_uv;
+
+    if (hit_dx.hasValue)
+    {
+        RayHitResult r = hit_dx.value.closestHit;
+        Triangle ttri = hit_dx.value.hitTriangle;
+        float3 p = ray_dx.origin + r.t * normalize(ray_dx.direction);
+        float3 bc = ttri.calculateBarycentricCoord(p);
+        tex_uv_dx = ttri.getUV(bc);
+    }
+
+    if (hit_dy.hasValue)
+    {
+        RayHitResult r = hit_dy.value.closestHit;
+        Triangle ttri = hit_dy.value.hitTriangle;
+        float3 p = ray_dy.origin + r.t * normalize(ray_dy.direction);
+        float3 bc = ttri.calculateBarycentricCoord(p);
+        tex_uv_dy = ttri.getUV(bc);
+    }
+
+    uint materialId = triangle.materialId + triangle.offset;
+    float2 texSize = float2(uniforms.physicsBasedMaterialBuf[materialId].albedo.mipmap[0].size);
+
+    float2 du = (tex_uv_dx - tex_uv) * texSize;
+    float2 dv = (tex_uv_dy - tex_uv) * texSize;
+
+    float rho = max(length(du), length(dv));
+    return log2(max(rho, 1.0));
     
     // TODO: Student implementation ends here.
 

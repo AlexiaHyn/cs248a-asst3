@@ -51,7 +51,9 @@ public void volumeSampleBwd(float2 uv, RendererUniform uniforms, float4 outGrad)
     // TODO: Student implementation starts here.
 
     // get tMax and primColor
-    Optional<RayMeshSampleResult> rayMeshSampleRes = meshSample(uv, uniforms);
+    uint2 tid = uint2(uv * float2(uniforms.camera.canvasSize));
+    RNG rng = RNG(tid, (tid.y * uniforms.camera.canvasSize.x + tid.x) * 10000 + uniforms.seed);    
+    Optional<RayMeshSampleResult> rayMeshSampleRes = meshSample(uv, uniforms, rng);
 
     float4 primColor = uniforms.ambientColor;
     float tMax = float.maxValue;
