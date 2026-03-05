@@ -97,7 +97,8 @@ public struct SphereSDF : ISDF
     {
         // TODO: Student implementation starts here.
 
-        return 0.0;
+        float3 localPoint = mul(this.invModelMatrix, float4(point, 1.0)).xyz;
+        return length(localPoint - this.center) - this.radius;
 
         // TODO: Student implementation ends here.
     }
@@ -106,9 +107,9 @@ public struct SphereSDF : ISDF
     {
         // TODO: Student implementation starts here.
 
-        return float3(0.0);
-
-        // TODO: Student implementation ends here.
+        float3 localPoint = mul(this.invModelMatrix, float4(point, 1.0)).xyz;
+        float3 localNormal = normalize(localPoint - this.center);
+        return normalize(mul(float4(localNormal, 0.0), this.invModelMatrix).xyz);        // TODO: Student implementation ends here.
     }
 }
 
@@ -122,7 +123,11 @@ public struct CubeSDF : ISDF
     {
         // TODO: Student implementation starts here.
 
-        return 0.0;
+        float3 localPoint = mul(this.invModelMatrix, float4(point, 1.0)).xyz;
+        float3 d = abs(localPoint) - this.size * 0.5;
+        float outsideDist = length(max(d, 0.0));
+        float insideDist = min(max(d.x, max(d.y, d.z)), 0.0);
+        return outsideDist + insideDist;
 
         // TODO: Student implementation ends here.
     }
@@ -131,7 +136,22 @@ public struct CubeSDF : ISDF
     {
         // TODO: Student implementation starts here.
 
-        return float3(0.0);
+        float3 localPoint = mul(this.invModelMatrix, float4(point, 1.0)).xyz;
+        float3 d = abs(localPoint) - this.size * 0.5;
+        float3 localNormal;
+        if (d.x > d.y && d.x > d.z)
+        {
+            localNormal = float3(sign(localPoint.x), 0.0, 0.0);
+        }
+        else if (d.y > d.z)
+        {
+            localNormal = float3(0.0, sign(localPoint.y), 0.0);
+        }
+        else
+        {
+            localNormal = float3(0.0, 0.0, sign(localPoint.z));
+        }
+        return normalize(mul(float4(localNormal, 0.0), this.invModelMatrix).xyz);
 
         // TODO: Student implementation ends here.
     }

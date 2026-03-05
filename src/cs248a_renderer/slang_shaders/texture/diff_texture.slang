@@ -111,7 +111,47 @@ public vector<T, N> sampleBilinear<T, let N : int>(DiffTexture2D<T, N> diffTex, 
 public void sampleBilinear_bwd<T, let N : int>(DifferentialPtrPair<DiffTexture2D<T, N>> diffTexPair, float2 uv, vector<T, N> dOut)
     where T : IArithmeticAtomicable, IFloat
 {
-    // TODO: Student implementation starts here.
+    // TODO: Student implementation starts here. 
+    float2 st = uv * float2(diffTexPair.p.size);
+
+    int x0 = int(floor(st.x));
+    int y0 = int(floor(st.y));
+    float fx = st.x - float(x0);
+    float fy = st.y - float(y0);
+
+    int x1 = x0 + 1;
+    int y1 = y0 + 1;
+    int maxX = int(diffTexPair.p.size.x) - 1;
+    int maxY = int(diffTexPair.p.size.y) - 1;
+    
+    x0 = clamp(x0, 0, maxX);
+    y0 = clamp(y0, 0, maxY);
+    x1 = clamp(x1, 0, maxX);
+    y1 = clamp(y1, 0, maxY);
+
+    uint idx00 = uint(y0) * diffTexPair.p.size.x + uint(x0);
+    uint idx10 = uint(y0) * diffTexPair.p.size.x + uint(x1);
+    uint idx01 = uint(y1) * diffTexPair.p.size.x + uint(x0);
+    uint idx11 = uint(y1) * diffTexPair.p.size.x + uint(x1);
+
+    float w00 = (1.0 - fx) * (1.0 - fy);
+    float w10 = fx * (1.0 - fy);
+    float w01 = (1.0 - fx) * fy;
+    float w11 = fx * fy;
+    uint indices[4] = { idx00, idx10, idx01, idx11 };
+    float weights[4] = { w00, w10, w01, w11 };
+
+    [ForceUnroll]
+    for (int j = 0; j < 4; ++j)
+    {
+        uint index = indices[j];
+        float w = weights[j];
+        for (int i = 0; i < N; ++i)
+        {
+            // Update the differential buffer with weighted gradient
+            diffTexPair.d.dTex[index][i].add((T)w * dOut[i]);
+        }
+    }
 
     // TODO: Student implementation ends here.
 }
@@ -259,6 +299,78 @@ public void sampleTrilinear_bwd<T, let N : int>(DifferentialPtrPair<DiffTexture3
     where T : IArithmeticAtomicable, IFloat
 {
     // TODO: Student implementation starts here.
+    DiffTexture3D<T, N> diffTex = diffTexPair.p;
+    // Convert UVW to continuous texel space
+    float3 stp = uv * float3(diffTex.size);
+
+    // Base integer coordinates and fractional parts
+    int x0 = int(floor(stp.x));
+    int y0 = int(floor(stp.y));
+    int z0 = int(floor(stp.z));
+    float fx = stp.x - float(x0);
+    float fy = stp.y - float(y0);
+    float fz = stp.z - float(z0);
+
+    // Neighbor coordinates
+    int x1 = x0 + 1;
+    int y1 = y0 + 1;
+    int z1 = z0 + 1;
+
+    // Clamp to texture bounds
+    int maxX = int(diffTex.size.x) - 1;
+    int maxY = int(diffTex.size.y) - 1;
+    int maxZ = int(diffTex.size.z) - 1;
+    x0 = clamp(x0, 0, maxX);
+    y0 = clamp(y0, 0, maxY);
+    z0 = clamp(z0, 0, maxZ);
+    x1 = clamp(x1, 0, maxX);
+    y1 = clamp(y1, 0, maxY);
+    z1 = clamp(z1, 0, maxZ);
+
+    // Compute linear indices
+    uint sx = diffTex.size.x;
+    uint sy = diffTex.size.y;
+    uint indices[8];
+    indices[0] = (uint(z0) * sy + uint(y0)) * sx + uint(x0); //idx000
+    indices[1] = (uint(z0) * sy + uint(y0)) * sx + uint(x1); //idx100
+    indices[2] = (uint(z0) * sy + uint(y1)) * sx + uint(x0); //idx010
+    indices[3] = (uint(z0) * sy + uint(y1)) * sx + uint(x1); //idx110
+    indices[4] = (uint(z1) * sy + uint(y0)) * sx + uint(x0); //idx001
+    indices[5] = (uint(z1) * sy + uint(y0)) * sx + uint(x1); //idx101
+    indices[6] = (uint(z1) * sy + uint(y1)) * sx + uint(x0); //idx011
+    indices[7] = (uint(z1) * sy + uint(y1)) * sx + uint(x1); //idx111
+
+    // Trilinear weights
+    float wx0 = (1.0 - fx);
+    float wy0 = (1.0 - fy);
+    float wz0 = (1.0 - fz);
+    float wx1 = fx;
+    float wy1 = fy;
+    float wz1 = fz;
+
+    float weights[8];
+    weights[0] = wx0 * wy0 * wz0; //w000
+    weights[1] = wx1 * wy0 * wz0; //w100
+    weights[2] = wx0 * wy1 * wz0; //w010
+    weights[3] = wx1 * wy1 * wz0; //w110
+    weights[4] = wx0 * wy0 * wz1; //w001
+    weights[5] = wx1 * wy0 * wz1; //w101
+    weights[6] = wx0 * wy1 * wz1; //w011
+    weights[7] = wx1 * wy1 * wz1; //w111
+
+    // Distribute gradients
+    [ForceUnroll]
+    for (int j = 0; j < 8; j++) {
+        uint idx = indices[j];
+        float w = weights[j];
+
+        [ForceUnroll]
+        for (int i = 0; i < N; i++) {
+            // propogate the gradient back to the texture
+            T gradientVal = (T)w * dOut[i];
+            diffTexPair.d.dTex[idx][i].add(gradientVal);
+        }
+    } 
 
     // TODO: Student implementation ends here.
 }

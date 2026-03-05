@@ -34,6 +34,24 @@ public struct Triangle : IBoundingBox, IRayCastable
         float w = 0.0;
 
         // TODO: Student implementation starts here.
+        float3 v0 = this.vertices[0];
+        float3 v1 = this.vertices[1];
+        float3 v2 = this.vertices[2];
+        float3 v0v1 = v1 - v0;
+        float3 v0v2 = v2 - v0;
+        float3 vp = p - v0;
+        float3 n = cross(v0v1, v0v2);
+        float areaSq = dot(n, n);
+        if (areaSq < EPSILON)
+        {
+            return float3(1.0, 0.0, 0.0);
+        }
+
+        float3 c1 = cross(vp, v0v2);
+        float3 c2 = cross(v0v1, vp);
+        v = dot(n, c1) / areaSq;
+        w = dot(n, c2) / areaSq;
+        u = 1.0 - v - w;
 
         // TODO: Student implementation ends here.
 
@@ -48,7 +66,7 @@ public struct Triangle : IBoundingBox, IRayCastable
         float v = barycentricCoord.y;
         float w = barycentricCoord.z;
         uv = u * this.uvs[0] + v * this.uvs[1] + w * this.uvs[2];
-
+        
         return uv;
     }
 
@@ -79,7 +97,47 @@ public struct Triangle : IBoundingBox, IRayCastable
     {
         // TODO: Student implementation starts here.
 
-        return Optional<RayHitResult>();
+        float3 edge1 = this.vertices[1] - this.vertices[0];
+        float3 edge2 = this.vertices[2] - this.vertices[0];
+        float3 h = cross(ray.direction, edge2);
+        float det = dot(edge1, h);
+        if (det >-1e-6 && det < 1e-6)
+        {
+            return Optional<RayHitResult>();
+        }
+        float invDet = 1.0 / det;
+        float3 s = ray.origin - this.vertices[0];
+        float u = invDet * dot(s, h);
+        if (u < -1e-6 || u > 1.0 + 1e-6)
+        {
+            return Optional<RayHitResult>();
+        }
+        float3 q = cross(s, edge1);
+        float v = invDet * dot(ray.direction, q);
+        if (v < -1e-6 || u + v > 1.0 + 1e-6)
+        {
+            return Optional<RayHitResult>();
+        }
+        float t = invDet * dot(edge2, q);
+        if (t < ray.tRange.x || t > ray.tRange.y)
+        {
+            return Optional<RayHitResult>();
+        }
+        RayHitResult hitResult;
+        hitResult.t = t;
+
+        // Compute geometric face normal (works even if mesh normals are missing)
+        float3 faceN = cross(edge1, edge2);
+        float3 normalizedFaceN = normalize(faceN);
+        if (dot(normalizedFaceN, ray.direction) > -1e-6)
+        {
+            hitResult.normal = -normalizedFaceN;
+        } else 
+        {
+            hitResult.normal = normalizedFaceN;
+        }
+        // hitResult.normal = faceN;
+        return Optional<RayHitResult>(hitResult);
 
         // TODO: Student implementation ends here.
     }

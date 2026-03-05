@@ -95,6 +95,45 @@ public struct BVH<T>
         HitStack<64> stack;
 
         // TODO: Student implementation starts here.
+        stack.push(0);
+        float closestT = ray.tRange.y;
+
+        while (!stack.isEmpty())
+        {
+            uint nodeIdx = stack.pop();
+            if (nodeIdx >= this.maxNodes) continue;
+            BVHNode node = this.nodes[nodeIdx];
+            float2 tBox = node.hit(ray);
+            if (tBox.x > tBox.y || tBox.y < ray.tRange.x || tBox.x > closestT)
+            {
+                continue;
+            }
+
+            bool isLeaf = (node.left < 0 && node.right < 0);
+            if (isLeaf)
+            {
+                for (int i = node.primLeft; i < node.primRight; ++i)
+                {
+                    if (i < 0 || (uint)i >= this.numPrimitives) continue;
+                    
+                    Optional<RayHitResult> h = this.primitives[i].hit(ray);
+                    
+                    if (h.hasValue && h.value.t < closestT)
+                    {
+                        closestT = h.value.t;
+                        HitResult hr;
+                        hr.primitive = this.primitives[i];
+                        hr.rayHitResult = h.value;
+                        hitResult = Optional<HitResult>(hr);
+                    }
+                }
+            }
+            else
+            {
+                if (node.right >= 0) stack.push((uint)node.right);
+                if (node.left >= 0)  stack.push((uint)node.left);
+            }
+        }
 
         // TODO: Student implementation ends here.
 
